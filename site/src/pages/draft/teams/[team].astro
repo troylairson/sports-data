@@ -1,0 +1,123 @@
+---
+import Base from "../../../layouts/Base.astro";
+import RoundLegend from "../../../components/RoundLegend.astro";
+import data from "../../../data/draft-and-winning.json";
+import { NICKNAMES, PLAYOFF_LONG, draftText, record } from "../../../lib/draft.js";
+
+export function getStaticPaths() {
+  const latest = data.seasons[data.seasons.length - 1];
+  return latest.teams.map((t) => ({ params: { team: t.franchise.toLowerCase() }, props: { franchise: t.franchise } }));
+}
+
+const { franchise } = Astro.props;
+const history = data.seasons
+  .map((s) => ({ ...s.teams.find((t) => t.franchise === franchise)!, season: s.season }))
+  .reverse();
+const name = history[0].name;
+const [first, last] = data.meta.seasons;
+const playoffs = history.filter((t) => t.playoff > 0).length;
+const titles = history.filter((t) => t.playoff === 5).map((t) => t.season);
+const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+const homegrown = Math.round(avg(history.map((t) => t.summary.homegrownShare)) * 100);
+const leagueHomegrown = Math.round(
+  avg(data.seasons.flatMap((s) => s.teams.map((t) => t.summary.homegrownShare))) * 100,
+);
+const firstRounders = avg(history.map((t) => t.summary.byRound["1"])).toFixed(1);
+const base = import.meta.env.BASE_URL;
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+---
+<Base title={`${name}: How the Roster Was Built`} description={`Where the ${name}’ starters were drafted, ${first}–${last}.`}>
+  <article>
+    <header class="measure">
+      <p class="kicker"><a href={`${base}draft/`}>The Draft</a> · Team</p>
+      <h1>{name}</h1>
+      <p class="dek">
+        {playoffs} playoff {playoffs === 1 ? "trip" : "trips"} in {last - first + 1} seasons{titles.length ? `, with ${titles.length === 1 ? "a Super Bowl title" : "Super Bowl titles"} in ${titles.join(" and ")}` : ""}.
+        On average, {homegrown}% of the {NICKNAMES[franchise]}’ starters were players the team drafted itself (league
+        average: {leagueHomegrown}%), and {firstRounders} of 22 were first-round picks.
+      </p>
+    </header>
+
+    <figure class="wide">
+      <div class="chart-head">
+        <h3>Where the {NICKNAMES[franchise]}’ starters were drafted, by season</h3>
+        <p>The 11 offensive and 11 defensive players with the most snaps. Hover a dot for the player.</p>
+      </div>
+      <RoundLegend />
+      <div class="chart" data-chart="history"></div>
+      <figcaption>Source: nflverse.</figcaption>
+    </figure>
+
+    <section class="measure">
+      <h2>The starters</h2>
+      <div class="seg" role="group" aria-label="Season" data-seasons>
+        {history.map((t) => (
+          <button type="button" data-season={t.season} aria-pressed={t.season === last ? "true" : "false"}>{t.season}</button>
+        ))}
+      </div>
+      {history.map((t) => (
+        <div data-table={t.season} hidden={t.season !== last}>
+          <p class="notes">
+            {t.season}: {record(t)}, {PLAYOFF_LONG[t.playoff].replace(/^./, (c) => c.toLowerCase())}. {pct(t.summary.homegrownShare)} homegrown.
+          </p>
+          <div class="table-scroll">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Pos.</th>
+                  <th>How acquired</th>
+                  <th class="num">Snaps</th>
+                </tr>
+              </thead>
+              <tbody>
+                {t.starters.map((p) => (
+                  <tr>
+                    <td>
+                      <span
+                        class={`swatch${p.round == null ? " hollow" : ""}`}
+                        style={`background: var(--${p.round == null ? "udfa" : p.round >= 4 ? "r4" : `r${p.round}`}); margin-right: 8px; vertical-align: -1px`}
+                      ></span>
+                      {p.name}
+                    </td>
+                    <td>{p.pos}</td>
+                    <td>{draftText(p)}</td>
+                    <td class="num">{pct(p.share)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+      <p class="source">Snaps: share of the team’s offensive or defensive snaps in the regular season.</p>
+    </section>
+  </article>
+</Base>
+
+<script>
+  import data from "../../../data/draft-and-winning.json";
+  import { leadStrip } from "../../../charts/leadStrip.js";
+
+  const franchise = location.pathname.split("/").filter(Boolean).pop().toUpperCase();
+  const history = data.seasons
+    .map((s) => ({ ...s.teams.find((t) => t.franchise === franchise), season: s.season }))
+    .reverse();
+  const el = document.querySelector('[data-chart="history"]');
+  const draw = () => leadStrip(el, { teams: history }, { rowLabel: (t) => String(t.season), labelHeader: "Season" });
+  draw();
+
+  let lastWidth = window.innerWidth;
+  window.addEventListener("resize", () => {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    draw();
+  });
+
+  document.querySelectorAll("[data-seasons] button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("[data-seasons] button").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+      document.querySelectorAll("[data-table]").forEach((t) => (t.hidden = t.dataset.table !== btn.dataset.season));
+    });
+  });
+</script>

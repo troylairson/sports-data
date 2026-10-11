@@ -1,0 +1,11 @@
+---
+import { ROUND_CLASSES } from "../lib/draft.js";
+---
+<ul class="legend" aria-label="Draft round">
+  {ROUND_CLASSES.map((c) => (
+    <li>
+      <span class={`swatch${c.key === "udfa" ? " hollow" : ""}`} style={`background: var(--${c.key})`}></span>
+      {c.label}
+    </li>
+  ))}
+</ul>

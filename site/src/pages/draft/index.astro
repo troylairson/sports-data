@@ -1,0 +1,296 @@
+---
+import Base from "../../layouts/Base.astro";
+import RoundLegend from "../../components/RoundLegend.astro";
+import data from "../../data/draft-and-winning.json";
+import { summarize } from "../../lib/stats.js";
+
+const s = summarize(data);
+const [first, last] = s.seasons;
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+const r2 = (x: number) => x.toFixed(2);
+const slope = data.meta.pickValue.slope;
+const value = (pick: number) => Math.round(100 + slope * Math.log(pick));
+const latest = data.seasons[data.seasons.length - 1];
+const champ = latest.teams.find((t) => t.playoff === 5)!;
+const champFirst = champ.summary.byRound["1"];
+const champUdfa = champ.summary.byRound.udfa;
+const base = import.meta.env.BASE_URL;
+---
+<Base
+  title="Does the Draft Build Winners?"
+  description={`How ${s.starters.toLocaleString()} NFL starters were acquired, and what it says about winning.`}
+>
+  <article>
+    <header class="measure">
+      <p class="kicker">The Draft</p>
+      <h1>The Draft Builds Winners, Just Not the Way You’d Think</h1>
+      <p class="dek">
+        Across {last - first + 1} NFL seasons and {s.starters.toLocaleString()} starters, how high a team’s players were
+        picked says almost nothing about its record. Whether the team picked them itself says more.
+      </p>
+      <p class="byline">Data through the {last}–{String(last + 1).slice(2)} season, including the Super Bowl · Updated {data.meta.generated}</p>
+    </header>
+
+    <div class="measure">
+      <p>
+        Every spring, the draft is sold as the foundation of a franchise: get the first round right and the wins will
+        follow. The {champ.name} won the most recent Super Bowl with {champFirst} first-round picks among their 22
+        starters, which sounds like proof. They also started {champUdfa} players nobody drafted at all.
+      </p>
+      <p>
+        Below are all 32 teams’ most-used starters, ordered by regular-season record. Each dot is a player, shaded by the
+        round he was drafted in.
+      </p>
+    </div>
+
+    <figure class="wide" id="lead">
+      <div class="chart-head">
+        <h3>Where every starter was drafted</h3>
+        <p>The 11 offensive and 11 defensive players with the most snaps on each team. Hover a dot for the player.</p>
+      </div>
+      <div class="seg" role="group" aria-label="Season" data-seasons>
+        {data.seasons.map((x) => (
+          <button type="button" data-season={x.season} aria-pressed={x.season === last ? "true" : "false"}>
+            {x.season}
+          </button>
+        ))}
+      </div>
+      <RoundLegend />
+      <div class="chart" data-chart="lead"></div>
+      <figcaption>Teams with bold names made the playoffs. Shaded row: Super Bowl champion. Source: nflverse.</figcaption>
+    </figure>
+
+    <div class="measure">
+      <h2>Draft pedigree barely moves the needle</h2>
+      <p>
+        To compare rosters, we scored each starter by the typical career value of the pick spent on him. The first
+        overall pick is worth 100, the 16th about {value(16)}, the 65th about {value(65)} and a seventh-rounder about
+        {value(240)}. Undrafted players are worth zero. Averaged across a team’s 22 starters, that “draft capital” has
+        almost no relationship with winning.
+      </p>
+    </div>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>Draft capital vs. regular-season record</h3>
+        <p>Each dot is one team-season, {first}–{last}.</p>
+      </div>
+      <ul class="legend">
+        <li><span class="swatch" style="background: var(--s1)"></span>Made playoffs</li>
+        <li><span class="swatch" style="background: var(--udfa); opacity: 0.6"></span>Missed playoffs</li>
+        <li><span class="swatch" style="background: var(--s1); box-shadow: 0 0 0 2px var(--ink)"></span>Won Super Bowl</li>
+      </ul>
+      <div class="chart" data-chart="capital"></div>
+      <figcaption>
+        Draft capital is the average pick value of a team’s 22 starters. A correlation (r) of 0 means no relationship; 1
+        means a perfect one.
+      </figcaption>
+    </figure>
+
+    <div class="measure">
+      <p>
+        The correlation is {r2(s.r.capital)}. A simpler measure, the share of starters who were first-round picks, does no
+        better ({r2(s.r.firstRound)}). Expensive picks bust, cheap ones hit, and players move. A roster full of
+        first-rounders tells you how much a team, or several teams, once spent. It doesn’t tell you how well.
+      </p>
+
+      <h2>What matters more is who did the drafting</h2>
+      <p>
+        The stronger signal is whether a starter was drafted by the team he now plays for. Across the decade, about
+        {pct(s.homegrown.mean)} of starters were homegrown. Teams in the top quarter, at least {pct(s.homegrown.q3)}
+        homegrown, made the playoffs {pct(s.homegrown.topRate)} of the time. Teams in the bottom quarter, {pct(s.homegrown.q1)}
+        or fewer, made it {pct(s.homegrown.bottomRate)} of the time.
+      </p>
+    </div>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>Homegrown starters vs. regular-season record</h3>
+        <p>Share of each team’s 22 starters it drafted itself.</p>
+      </div>
+      <ul class="legend">
+        <li><span class="swatch" style="background: var(--s1)"></span>Made playoffs</li>
+        <li><span class="swatch" style="background: var(--udfa); opacity: 0.6"></span>Missed playoffs</li>
+        <li><span class="swatch" style="background: var(--s1); box-shadow: 0 0 0 2px var(--ink)"></span>Won Super Bowl</li>
+      </ul>
+      <div class="chart" data-chart="homegrown"></div>
+      <figcaption>Relocated franchises count as the same team, so a player the Oakland Raiders drafted is homegrown in Las Vegas.</figcaption>
+    </figure>
+
+    <div class="measure">
+      <p>
+        At r = {r2(s.r.homegrown)}, it is still a modest relationship. Plenty of homegrown rosters lose, and some
+        champions were assembled in free agency. But it points to something the round can’t capture: a team that keeps
+        its own picks is usually a team that picked well, and has kept the scouts, coaches and system that made the picks
+        work.
+      </p>
+
+      <h2>Champions lean on the second round</h2>
+      <p>
+        Sorting teams by how far they went in the playoffs shows the same pattern from another angle. The last
+        {s.champs.length} Super Bowl winners started fewer first-round picks than the teams that missed the playoffs,
+        {pct(s.shares.champs.r1)} to {pct(s.shares.missed.r1)}, and many more second-rounders,
+        {pct(s.shares.champs.r2)} to {pct(s.shares.missed.r2)}.
+      </p>
+    </div>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>How starters were acquired, by playoff result</h3>
+        <p>Share of all starters on teams with each result, {first}–{last}.</p>
+      </div>
+      <RoundLegend />
+      <div class="chart" data-chart="mix"></div>
+      <figcaption>Only one team a season wins or loses the Super Bowl, so those rows rest on {s.champs.length} teams each and can swing with a few players.</figcaption>
+    </figure>
+
+    <div class="measure">
+      <h2>The exception is quarterback</h2>
+      <p>
+        At most positions, playoff teams and also-rans start first-round picks at about the same rate. Quarterback is
+        the clear exception. {pct(s.qb.made)} of playoff teams’ starting quarterbacks were first-round picks, compared
+        with {pct(s.qb.missed)} for teams that missed.
+      </p>
+    </div>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>Share of starters who were first-round picks, by position</h3>
+        <p>{first}–{last}. Positions as listed by Pro Football Reference.</p>
+      </div>
+      <ul class="legend">
+        <li><span class="swatch" style="background: var(--s1)"></span>Playoff teams</li>
+        <li><span class="swatch" style="background: var(--s2)"></span>Teams that missed</li>
+      </ul>
+      <div class="chart" data-chart="positions"></div>
+      <figcaption>Edge rushers are listed as defensive linemen or linebackers depending on the team’s scheme, so they are not separated here.</figcaption>
+    </figure>
+
+    <div class="measure">
+      <h2>The undrafted starter is disappearing</h2>
+      <p>
+        One more trend runs underneath all of this. In {first}, {pct(s.bySeason[0].udfa)} of starters had gone undrafted.
+        By {last}, it was {pct(s.bySeason[s.bySeason.length - 1].udfa)}. Teams are filling more of their lineups with
+        drafted players, which makes it more important that the picks are good, not just high.
+      </p>
+    </div>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>Share of starters who went undrafted</h3>
+        <p>All 32 teams, by season.</p>
+      </div>
+      <div class="chart" data-chart="udfa"></div>
+    </figure>
+
+    <section class="measure notes">
+      <h2>Explore a team</h2>
+      <p class="team-links">
+        {latest.teams
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((t, i, arr) => (
+            <>
+              <a href={`${base}draft/teams/${t.franchise.toLowerCase()}/`}>{t.name}</a>
+              {i < arr.length - 1 ? " · " : ""}
+            </>
+          ))}
+      </p>
+
+      <h2>How we did this</h2>
+      <p>
+        <strong>Starters.</strong> For every team and season, the {data.meta.starterRule.toLowerCase()}. Snap counts come
+        from Pro Football Reference. A player traded midseason counts only for the team where he played those snaps.
+        Kickers, punters and special teams are excluded.
+      </p>
+      <p>
+        <strong>Draft position.</strong> Each starter is matched to the draft pick that brought him into the league,
+        regardless of which team made it. Players with no draft record are counted as undrafted. A handful of
+        supplemental-draft picks are counted in the round the pick was spent.
+      </p>
+      <p>
+        <strong>Pick value.</strong> We fit a curve to the average career Approximate Value (a Pro Football Reference
+        measure of player contribution) produced by every draft slot from {data.meta.pickValue.fitDrafts[0]} to
+        {data.meta.pickValue.fitDrafts[1]}, then rescaled it so the first pick equals 100.
+      </p>
+      <p>
+        <strong>Records.</strong> Regular-season win percentage, with ties counted as half a win. Playoff results run
+        from missing the playoffs to winning the Super Bowl.
+      </p>
+      <p>
+        <strong>Data.</strong> All inputs are free, public files from the
+        <a href="https://github.com/nflverse/nflverse-data">nflverse</a> project. Correlations here describe
+        association, not cause.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<script>
+  import data from "../../data/draft-and-winning.json";
+  import { leadStrip } from "../../charts/leadStrip.js";
+  import { scatter } from "../../charts/scatter.js";
+  import { roundMixBars, dumbbell, seasonLine } from "../../charts/compare.js";
+  import { allTeams, roundShares, positionFirstRound } from "../../lib/stats.js";
+  import { PLAYOFF_LONG } from "../../lib/draft.js";
+
+  const base = import.meta.env.BASE_URL;
+  const teams = allTeams(data);
+  const latest = data.seasons[data.seasons.length - 1];
+  const champ = latest.teams.find((t) => t.playoff === 5);
+  const el = (name) => document.querySelector(`[data-chart="${name}"]`);
+  let season = latest;
+
+  const points = (metric) =>
+    teams.map((t) => ({
+      season: t.season, team: t.team, franchise: t.franchise, winPct: t.winPct,
+      playoff: t.playoff, wins: t.wins, losses: t.losses, ties: t.ties, x: t.summary[metric],
+    }));
+
+  const draw = {
+    lead: () => leadStrip(el("lead"), season, { teamHref: (f) => `${base}draft/teams/${f.toLowerCase()}/` }),
+    capital: () =>
+      scatter(el("capital"), points("capital"), {
+        xLabel: "Draft capital", xFormat: (v) => v.toFixed(0),
+        label: [{ season: latest.season, team: champ.team }],
+      }),
+    homegrown: () =>
+      scatter(el("homegrown"), points("homegrownShare"), {
+        xLabel: "Homegrown starters", xFormat: (v) => `${Math.round(v * 100)}%`, xDomain: [0, 1],
+        label: [{ season: latest.season, team: champ.team }],
+      }),
+    mix: () =>
+      roundMixBars(
+        el("mix"),
+        [5, 4, 3, 2, 1, 0].map((p) => {
+          const g = teams.filter((t) => t.playoff === p);
+          return { label: PLAYOFF_LONG[p], n: g.length, shares: roundShares(g), strong: p === 5 };
+        }),
+      ),
+    positions: () => dumbbell(el("positions"), positionFirstRound(teams), { aLabel: "Playoff teams", bLabel: "Missed" }),
+    udfa: () =>
+      seasonLine(
+        el("udfa"),
+        data.seasons.map((s) => ({ season: s.season, v: roundShares(s.teams).udfa })),
+        { yLabel: "Starters undrafted" },
+      ),
+  };
+
+  const drawAll = () => Object.values(draw).forEach((f) => f());
+  drawAll();
+
+  let lastWidth = window.innerWidth;
+  window.addEventListener("resize", () => {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    drawAll();
+  });
+
+  document.querySelectorAll("[data-seasons] button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      season = data.seasons.find((s) => s.season === Number(btn.dataset.season));
+      document.querySelectorAll("[data-seasons] button").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+      draw.lead();
+    });
+  });
+</script>

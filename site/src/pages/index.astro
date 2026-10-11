@@ -1,0 +1,46 @@
+---
+import Base from "../layouts/Base.astro";
+import data from "../data/draft-and-winning.json";
+import { summarize } from "../lib/stats.js";
+
+const base = import.meta.env.BASE_URL;
+const s = summarize(data);
+
+const concepts = [
+  {
+    href: `${base}draft/`,
+    kicker: "NFL · The Draft",
+    title: "The Draft Builds Winners, Just Not the Way You’d Think",
+    dek: `How ${s.starters.toLocaleString()} starters across ${s.seasons[1] - s.seasons[0] + 1} seasons were acquired, and what it says about winning.`,
+    updated: data.meta.generated,
+  },
+];
+---
+<Base title="The Sports Data Desk" description="Sports data and visualizations.">
+  <div class="measure">
+    <p class="kicker">Latest</p>
+    <ul class="concepts">
+      {concepts.map((c) => (
+        <li>
+          <a href={c.href}>
+            <p class="c-kicker">{c.kicker}</p>
+            <h2>{c.title}</h2>
+            <p class="c-dek">{c.dek}</p>
+            <p class="c-meta">Updated {c.updated}</p>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</Base>
+
+<style>
+  .concepts { list-style: none; padding: 0; margin: 0; }
+  .concepts li { border-top: 1px solid var(--rule); padding: 20px 0 24px; }
+  .concepts a { text-decoration: none; display: block; }
+  .concepts a:hover h2 { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+  .concepts h2 { margin: 4px 0 8px; font-size: 28px; }
+  .c-kicker, .c-meta { font-family: var(--sans); font-size: 12px; color: var(--muted); margin: 0; letter-spacing: 0.04em; text-transform: uppercase; }
+  .c-meta { text-transform: none; letter-spacing: 0; margin-top: 8px; }
+  .c-dek { color: var(--ink-2); margin: 0; }
+</style>
