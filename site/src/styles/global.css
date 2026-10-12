@@ -86,8 +86,9 @@ a { color: inherit; text-decoration-color: var(--axis); text-underline-offset: 3
 a:hover { text-decoration-color: currentColor; }
 
 .masthead {
+  position: relative;
   border-bottom: 1px solid var(--rule);
-  padding: 14px 16px;
+  padding: 14px 56px;
   text-align: center;
 }
 .masthead a {
@@ -96,6 +97,33 @@ a:hover { text-decoration-color: currentColor; }
   font-size: 22px;
   letter-spacing: -0.01em;
   text-decoration: none;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.theme-toggle:hover { color: var(--ink); background: var(--wash); }
+.theme-toggle:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+/* Show the icon for the mode you'd switch to: moon in light, sun in dark. */
+.theme-toggle .icon-sun { display: none; }
+:root[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle .icon-sun { display: block; }
+  :root:not([data-theme="light"]) .theme-toggle .icon-moon { display: none; }
 }
 
 main { padding: 0 16px 80px; }
