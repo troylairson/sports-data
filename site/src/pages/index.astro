@@ -1,12 +1,22 @@
 ---
 import Base from "../layouts/Base.astro";
 import data from "../data/draft-and-winning.json";
+import velocity from "../data/velocity.json";
 import { summarize } from "../lib/stats.js";
+import { summarize as summarizeVelocity } from "../lib/velocity.js";
 
 const base = import.meta.env.BASE_URL;
 const s = summarize(data);
+const v = summarizeVelocity(velocity);
 
 const concepts = [
+  {
+    href: `${base}velocity/`,
+    kicker: "MLB · Velocity",
+    title: "Pitchers Keep Throwing Harder. Here’s What the Speed Buys.",
+    dek: `The average four-seam fastball has gained ${v.gain.toFixed(1)} mph since ${v.first.season}. Velocity reliably buys strikeouts. It buys wins less reliably.`,
+    updated: velocity.meta.generated,
+  },
   {
     href: `${base}draft/`,
     kicker: "NFL · The Draft",

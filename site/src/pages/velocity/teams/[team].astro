@@ -1,0 +1,170 @@
+---
+import Base from "../../../layouts/Base.astro";
+import data from "../../../data/velocity.json";
+import { NICKNAMES, record, slug } from "../../../lib/velocity.js";
+
+export function getStaticPaths() {
+  const latest = data.seasons[data.seasons.length - 1];
+  return latest.teams.map((t) => ({ params: { team: slug(t) }, props: { id: t.id } }));
+}
+
+const { id } = Astro.props;
+const history = data.seasons
+  .map((s) => {
+    const t = s.teams.find((x) => x.id === id)!;
+    const rank = [...s.teams].sort((a, b) => b.ff - a.ff).findIndex((x) => x.id === id) + 1;
+    const results = new Map(s.pitchers.map((p) => [p.id, p]));
+    return { ...t, season: s.season, league: s.league.ff, rank, results };
+  })
+  .reverse();
+const now = history[0];
+const name = now.name;
+const nick = NICKNAMES[id];
+const [first, last] = data.meta.seasons;
+const playoffs = history.filter((t) => t.playoff > 0).length;
+const titles = history.filter((t) => t.playoff === 5).map((t) => t.season);
+const ordinal = (n: number) => {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+};
+const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
+const base = import.meta.env.BASE_URL;
+const labels = data.meta.playoffLabels;
+---
+<Base title={`${name}: Pitch Velocity`} description={`How hard the ${name} have thrown, ${first}–${last}.`}>
+  <article>
+    <header class="measure">
+      <p class="kicker"><a href={`${base}velocity/`}>Velocity</a> · Team</p>
+      <h1>{name}</h1>
+      <p class="dek">
+        In {last}, the {nick}’ four-seam fastball averaged {now.ff.toFixed(1)} mph, {ordinal(now.rank)} hardest of 30 staffs.
+        {playoffs} playoff {playoffs === 1 ? "trip" : "trips"} in {last - first + 1} seasons{titles.length ? `, with ${titles.length === 1 ? "a World Series title" : "World Series titles"} in ${titles.join(" and ")}` : ""}.
+      </p>
+    </header>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>{nick} staff vs. league average four-seam velocity</h3>
+        <p>Average speed of every four-seam fastball thrown, regular season.</p>
+      </div>
+      <ul class="legend">
+        <li><span class="swatch line" style="background: var(--s1)"></span>{nick}</li>
+        <li><span class="swatch line" style="background: var(--udfa)"></span>League</li>
+      </ul>
+      <div class="chart" data-chart="trend"></div>
+      <figcaption>Source: Baseball Savant.</figcaption>
+    </figure>
+
+    <section class="measure">
+      <h2>Season by season</h2>
+      <div class="table-scroll">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Season</th>
+              <th>Record</th>
+              <th>Postseason</th>
+              <th class="num">Four-seam</th>
+              <th class="num">Rank</th>
+              <th class="num">95+ mph</th>
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((t) => (
+              <tr>
+                <td>{t.season}</td>
+                <td>{record(t)}</td>
+                <td>{t.playoff ? labels[t.playoff] : "—"}</td>
+                <td class="num">{t.ff.toFixed(1)}</td>
+                <td class="num">{t.rank}</td>
+                <td class="num">{pct(t.share95)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h2>The staff</h2>
+      <div class="seg" role="group" aria-label="Season" data-seasons>
+        {history.map((t) => (
+          <button type="button" data-season={t.season} aria-pressed={t.season === last ? "true" : "false"}>{t.season}</button>
+        ))}
+      </div>
+      {history.map((t) => (
+        <div data-table={t.season} hidden={t.season !== last}>
+          <div class="table-scroll">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Pitcher</th>
+                  <th class="num">Four-seamers</th>
+                  <th class="num">Avg. mph</th>
+                  <th class="num">ERA</th>
+                  <th class="num">K%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {t.staff.map((p) => {
+                  const res = t.results.get(p.id);
+                  return (
+                    <tr>
+                      <td>{p.name}{res ? <span class="muted-cell"> {res.role}</span> : null}</td>
+                      <td class="num">{p.n.toLocaleString()}</td>
+                      <td class="num">{p.ff?.toFixed(1) ?? "—"}</td>
+                      <td class="num">{res?.era?.toFixed(2) ?? "—"}</td>
+                      <td class="num">{res?.k != null ? `${res.k.toFixed(1)}%` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+      <p class="source">
+        Pitchers with at least 25 four-seamers for the team. ERA and K% are full-season figures, shown for pitchers who
+        reached the article’s minimums ({data.meta.minFF} four-seamers; {data.meta.minIP.SP} innings as a starter or
+        {data.meta.minIP.RP} in relief), and include time with other teams.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .muted-cell { color: var(--muted); font-size: 12px; }
+</style>
+
+<script>
+  import data from "../../../data/velocity.json";
+  import { multiLine } from "../../../charts/velocity.js";
+  import { NICKNAMES } from "../../../lib/velocity.js";
+
+  const abbr = location.pathname.split("/").filter(Boolean).pop().toUpperCase();
+  const latest = data.seasons[data.seasons.length - 1];
+  const id = latest.teams.find((t) => t.abbr === abbr).id;
+  const el = document.querySelector('[data-chart="trend"]');
+  const draw = () =>
+    multiLine(
+      el,
+      [
+        { label: NICKNAMES[id], color: "var(--s1)", points: data.seasons.map((s) => ({ season: s.season, v: s.teams.find((t) => t.id === id).ff })) },
+        { label: "League", color: "var(--udfa)", points: data.seasons.map((s) => ({ season: s.season, v: s.league.ff })) },
+      ],
+      { format: (v) => v.toFixed(1), tipFormat: (v) => `${v.toFixed(1)} mph` },
+    );
+  draw();
+
+  let lastWidth = window.innerWidth;
+  window.addEventListener("resize", () => {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    draw();
+  });
+
+  document.querySelectorAll("[data-seasons] button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("[data-seasons] button").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+      document.querySelectorAll("[data-table]").forEach((t) => (t.hidden = t.dataset.table !== btn.dataset.season));
+    });
+  });
+</script>

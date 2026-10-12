@@ -1,0 +1,356 @@
+---
+import Base from "../../layouts/Base.astro";
+import data from "../../data/velocity.json";
+import { NICKNAMES, slug, summarize } from "../../lib/velocity.js";
+
+const s = summarize(data);
+const { first, last } = s;
+const pct = (x: number, d = 0) => `${(x * 100).toFixed(d)}%`;
+const r2 = (x: number) => x.toFixed(2);
+const recent = data.seasons.find((x) => x.season === 2020)!.league;
+const sinceFlat = last.ff - recent.ff;
+const champRanks = s.champs.map((c) => c.rank);
+const worstChamp = Math.max(...champRanks);
+const bestChamp = Math.min(...champRanks);
+const q = s.pitchers.sp.quartiles;
+const top = s.yoy.bands;
+const latestTeams = data.seasons[data.seasons.length - 1].teams;
+const base = import.meta.env.BASE_URL;
+const ordinal = (n: number) => {
+  const sx = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (sx[(v - 20) % 10] || sx[v] || sx[0]);
+};
+---
+<Base
+  title="Pitchers Keep Throwing Harder"
+  description={`MLB four-seam velocity, ${first.season}–${last.season}, and what it is worth to pitchers and teams.`}
+>
+  <article>
+    <header class="measure">
+      <p class="kicker">Velocity</p>
+      <h1>Pitchers Keep Throwing Harder. Here’s What the Speed Buys.</h1>
+      <p class="dek">
+        The average four-seam fastball has gained {s.gain.toFixed(1)} mph since {first.season}, most of it in the last
+        five seasons. Velocity reliably buys strikeouts. It buys wins less reliably.
+      </p>
+      <p class="byline">Regular-season pitches, {first.season}–{last.season} · Updated {data.meta.generated}</p>
+    </header>
+
+    <div class="measure">
+      <p>
+        In {first.season}, the average major league four-seam fastball crossed the plate at {first.ff.toFixed(1)} mph. For
+        five seasons, it barely moved. Then it started climbing, and it has not stopped: {last.ff.toFixed(1)} mph in
+        {last.season}, a gain of {sinceFlat.toFixed(1)} mph since 2020 alone.
+      </p>
+      <p>
+        The average hides how much the whole distribution has shifted. In {first.season}, {pct(first.share95)} of
+        four-seamers reached 95 mph. In {last.season}, {pct(last.share95)} did.
+      </p>
+    </div>
+
+    <figure class="wide" id="lead">
+      <div class="chart-head">
+        <h3>How fast four-seam fastballs are thrown, by season</h3>
+        <p>Share of all regular-season four-seamers at each speed. The vertical tick marks the season’s average.</p>
+      </div>
+      <ul class="legend">
+        <li><span class="swatch" style="background: var(--r4); opacity: 0.55"></span>Under 95 mph</li>
+        <li><span class="swatch" style="background: var(--r2)"></span>95 mph or faster</li>
+      </ul>
+      <div class="chart" data-chart="ridge"></div>
+      <figcaption>Source: Baseball Savant (Statcast). {last.season} includes {last.ffN.toLocaleString()} four-seamers.</figcaption>
+    </figure>
+
+    <div class="measure">
+      <h2>It isn’t only the bullpen</h2>
+      <p>
+        Relievers throw harder than starters, and teams have handed relievers a bigger share of innings, from
+        {pct(first.reliefShareIP)} in {first.season} to {pct(last.reliefShareIP)} in {last.season}. That accounts for some of
+        the rise, but not most of it. Starters gained {(last.ffSP - first.ffSP).toFixed(1)} mph over the decade, more than
+        relievers did ({(last.ffRP - first.ffRP).toFixed(1)} mph).
+      </p>
+    </div>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>Average four-seam velocity, starters vs. relievers</h3>
+        <p>Weighted by four-seamers thrown. A pitcher counts as a starter if at least half his appearances were starts.</p>
+      </div>
+      <ul class="legend">
+        <li><span class="swatch line" style="background: var(--s2)"></span>Relievers</li>
+        <li><span class="swatch line" style="background: var(--s1)"></span>Starters</li>
+      </ul>
+      <div class="chart" data-chart="roles"></div>
+    </figure>
+
+    <div class="measure">
+      <p>
+        The hardest throwers have pulled away the most. Four-seamers at 98 mph or more, once a novelty, made up
+        {pct(first.share98, 1)} of the total in {first.season} and {pct(last.share98, 1)} in {last.season}.
+      </p>
+    </div>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>Share of four-seamers thrown 98 mph or faster</h3>
+      </div>
+      <div class="chart" data-chart="share98"></div>
+    </figure>
+
+    <div class="measure">
+      <h2>Speed buys strikeouts</h2>
+      <p>
+        For an individual pitcher, velocity’s clearest payoff is the strikeout. Among starters, the correlation between
+        fastball speed and strikeout rate is {r2(s.pitchers.sp.k)}; among relievers, {r2(s.pitchers.rp.k)}. The link to
+        preventing runs is real but weaker: {r2(s.pitchers.sp.era)} with ERA for starters, {r2(s.pitchers.rp.era)} for
+        relievers. A strikeout is only one way to get an out, and plenty of soft-tossers succeed by limiting hard contact.
+      </p>
+      <p>
+        Wins are weaker still ({r2(s.pitchers.sp.w)} for starters), because a pitcher’s win total depends heavily on his
+        team’s hitting and bullpen. Still, the gap adds up over a season. The hardest-throwing quarter of starters
+        averaged a {q.fast.era.toFixed(2)} ERA and {q.fast.w.toFixed(1)} wins; the softest-throwing quarter, a
+        {q.slow.era.toFixed(2)} ERA and {q.slow.w.toFixed(1)} wins.
+      </p>
+    </div>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>Fastball velocity vs. results, one season at a time</h3>
+        <p>Each dot is a pitcher who threw at least {data.meta.minFF} four-seamers and {data.meta.minIP.SP} innings as a starter or {data.meta.minIP.RP} in relief (scaled down for 2020’s 60-game season).</p>
+      </div>
+      <div class="seg" role="group" aria-label="Measure" data-metric>
+        <button type="button" data-metric="k" aria-pressed="true">Strikeout %</button>
+        <button type="button" data-metric="era" aria-pressed="false">ERA</button>
+        <button type="button" data-metric="w" aria-pressed="false">Wins (starters)</button>
+      </div>
+      <div class="seg" role="group" aria-label="Season" data-pseason>
+        {data.seasons.map((x) => (
+          <button type="button" data-season={x.season} aria-pressed={x.season === last.season ? "true" : "false"}>{x.season}</button>
+        ))}
+      </div>
+      <ul class="legend" data-role-legend>
+        <li><span class="swatch" style="background: var(--s1)"></span>Starters</li>
+        <li><span class="swatch" style="background: var(--s2)"></span>Relievers</li>
+      </ul>
+      <div class="chart" data-chart="pitchers"></div>
+      <figcaption>The trend line and correlation cover every pitcher shown.</figcaption>
+    </figure>
+
+    <div class="measure">
+      <h2>When a pitcher gains speed, he gets better</h2>
+      <p>
+        Hard throwers may simply be better pitchers to begin with. A cleaner test is to follow the same pitcher from one
+        season to the next. Among {s.yoy.n.toLocaleString()} pairs of consecutive seasons, pitchers who added 1.5 mph or
+        more raised their strikeout rate by {top.k[4].v.toFixed(1)} percentage points on average and cut their ERA by
+        {Math.abs(top.era[4].v).toFixed(2)} runs. Those who lost 1.5 mph or more saw their strikeout rate fall
+        {Math.abs(top.k[0].v).toFixed(1)} points and their ERA rise {top.era[0].v.toFixed(2)}.
+      </p>
+      <p>
+        Even pitchers whose speed held steady got a little worse ({top.era[2].v > 0 ? "+" : ""}{top.era[2].v.toFixed(2)} ERA),
+        largely because a season good enough to qualify tends to be followed by a more ordinary one. Measured against
+        that baseline, the effect of velocity is plain.
+      </p>
+    </div>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>Average change from one season to the next, by change in fastball velocity</h3>
+        <p>Same pitcher, same role, consecutive seasons. Blue marks an improvement, orange a decline.</p>
+      </div>
+      <div class="chart" data-chart="yoyK"></div>
+      <div class="chart" data-chart="yoyERA" style="margin-top: 20px"></div>
+    </figure>
+
+    <div class="measure">
+      <h2>Harder-throwing teams win a little more</h2>
+      <p>
+        Add up a whole staff and the pattern holds, more faintly. Compared with the league average each season, a team’s
+        four-seam velocity has a correlation of {r2(s.teams.r)} with its winning percentage. Staffs in the hardest-throwing
+        quarter, at least {s.teams.q3.toFixed(1)} mph above average, made the playoffs {pct(s.teams.fastRate)} of the time.
+        Staffs in the slowest quarter made it {pct(s.teams.slowRate)} of the time.
+      </p>
+    </div>
+
+    <figure class="measure">
+      <div class="chart-head">
+        <h3>Staff velocity vs. regular-season record</h3>
+        <p>Each dot is one team-season, {first.season}–{last.season}. Velocity is measured against that season’s league average.</p>
+      </div>
+      <ul class="legend">
+        <li><span class="swatch" style="background: var(--s1)"></span>Made playoffs</li>
+        <li><span class="swatch" style="background: var(--udfa); opacity: 0.6"></span>Missed playoffs</li>
+        <li><span class="swatch" style="background: var(--s1); box-shadow: 0 0 0 2px var(--ink)"></span>Won World Series</li>
+      </ul>
+      <div class="chart" data-chart="teams"></div>
+    </figure>
+
+    <div class="measure">
+      <p>
+        The champions tell the same story. Every World Series winner since {first.season} ranked between
+        {ordinal(bestChamp)} and {ordinal(worstChamp)} of 30 in staff velocity. {worstChamp <= 15 ? "All of them were in the top half; " : ""}
+        {bestChamp > 3 ? "none of them was among the three hardest-throwing staffs." : ""} Velocity helps a team get to
+        October. It doesn’t decide what happens there.
+      </p>
+    </div>
+
+    <figure class="wide">
+      <div class="chart-head">
+        <h3>Every staff’s velocity, by season</h3>
+        <p>Four-seam velocity relative to the league average. Hover a dot for the team; click to open its page.</p>
+      </div>
+      <ul class="legend">
+        <li><span class="swatch" style="background: var(--s1)"></span>Made playoffs</li>
+        <li><span class="swatch" style="background: var(--udfa); opacity: 0.6"></span>Missed playoffs</li>
+        <li><span class="swatch" style="background: var(--s1); box-shadow: 0 0 0 2px var(--ink)"></span>Won World Series</li>
+      </ul>
+      <div class="chart" data-chart="strip"></div>
+    </figure>
+
+    <section class="measure notes">
+      <h2>Explore a team</h2>
+      <p class="team-links">
+        {latestTeams
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((t, i, arr) => (
+            <>
+              <a href={`${base}velocity/teams/${slug(t)}/`}>{t.name}</a>
+              {i < arr.length - 1 ? " · " : ""}
+            </>
+          ))}
+      </p>
+
+      <h2>How we did this</h2>
+      <p>
+        <strong>Velocity.</strong> Release speed of every regular-season four-seam fastball, as classified and measured by
+        Statcast. We use four-seamers because nearly every pitcher throws one and it is the standard measure of how hard a
+        pitcher throws. Statcast’s tracking hardware changed in 2020 (from radar to optical cameras), which may account for
+        a small part of any shift around that season.
+      </p>
+      <p>
+        <strong>Pitchers.</strong> Season results come from Baseball Savant. A pitcher is a starter if at least half his
+        appearances were starts. Pitchers must have thrown at least {data.meta.minFF} four-seamers and pitched
+        {data.meta.minIP.SP} innings as a starter or {data.meta.minIP.RP} in relief; both minimums are scaled down for the
+        60-game 2020 season. Correlations compare each pitcher with the average for his role that season, so the
+        league-wide rise in velocity and strikeouts doesn’t inflate them.
+      </p>
+      <p>
+        <strong>Teams.</strong> Staff velocity is the average of every four-seamer the team threw. Records, runs allowed
+        and playoff results come from the MLB Stats API. Correlations describe association, not cause.
+      </p>
+    </section>
+  </article>
+</Base>
+
+<script>
+  import data from "../../data/velocity.json";
+  import { ridgeline, multiLine, changeBars, seasonDots } from "../../charts/velocity.js";
+  import { seasonLine } from "../../charts/compare.js";
+  import { scatter, tierDot } from "../../charts/scatter.js";
+  import { NICKNAMES, PLAYOFF_SHORT, allTeams, record, signed, slug, yoyBands } from "../../lib/velocity.js";
+
+  const base = import.meta.env.BASE_URL;
+  const labels = data.meta.playoffLabels;
+  const el = (name) => document.querySelector(`[data-chart="${name}"]`);
+  const L = data.seasons.map((s) => s.league);
+  const latest = data.seasons[data.seasons.length - 1];
+  const teams = allTeams(data);
+  const tier = (p) => (p === 5 ? 2 : p > 0 ? 1 : 0);
+  const pctFmt = (v) => `${Math.round(v * 100)}%`;
+
+  let metric = "k";
+  let pSeason = latest.season;
+
+  const METRICS = {
+    k: { label: "Strikeout %", format: (v) => `${v}%`, value: (p) => p.k, reverse: false },
+    era: { label: "ERA", format: (v) => v.toFixed(1), value: (p) => p.era, reverse: true, domain: [0, 8] },
+    w: { label: "Wins", format: (v) => v.toFixed(0), value: (p) => p.w, reverse: false, startersOnly: true },
+  };
+
+  const draw = {
+    ridge: () =>
+      ridgeline(
+        el("ridge"),
+        L.map((l) => ({ label: String(l.season), hist: l.hist, avg: l.ff })),
+        data.meta.bins,
+      ),
+    roles: () =>
+      multiLine(
+        el("roles"),
+        [
+          { label: "Relievers", color: "var(--s2)", points: L.map((l) => ({ season: l.season, v: l.ffRP })) },
+          { label: "Starters", color: "var(--s1)", points: L.map((l) => ({ season: l.season, v: l.ffSP })) },
+        ],
+        { format: (v) => v.toFixed(1), tipFormat: (v) => `${v.toFixed(1)} mph` },
+      ),
+    share98: () => seasonLine(el("share98"), L.map((l) => ({ season: l.season, v: l.share98 })), { yLabel: "Of four-seamers at 98+ mph" }),
+    pitchers: () => {
+      const m = METRICS[metric];
+      const season = data.seasons.find((s) => s.season === pSeason);
+      const pts = season.pitchers
+        .filter((p) => !m.startersOnly || p.role === "SP")
+        .filter((p) => m.value(p) != null)
+        .map((p) => ({ ...p, x: p.ff, y: Math.min(m.value(p), m.domain ? m.domain[1] : Infinity) }));
+      const fastest = [...pts].sort((a, b) => b.x - a.x)[0];
+      document.querySelector("[data-role-legend]").hidden = !!m.startersOnly;
+      scatter(el("pitchers"), pts, {
+        x: { label: "Four-seam velocity (mph)", format: (v) => v.toFixed(0) },
+        y: { label: m.label, format: m.format, reverse: m.reverse, domain: m.domain },
+        dot: (d) => ({ fill: d.role === "SP" ? "var(--s1)" : "var(--s2)", opacity: 0.7, r: 4 }),
+        tip: (d) =>
+          `<strong>${d.name}</strong> <span class="muted">${d.role === "SP" ? "Starter" : "Reliever"}, ${d.season}</span><br>${d.ff.toFixed(1)} mph four-seamer<br>${d.k}% strikeouts · ${d.era.toFixed(2)} ERA · ${d.w}-${d.l}<br><span class="muted">${d.ip} innings</span>`,
+        label: (d) => (d === fastest ? d.name : null),
+      });
+    },
+    yoyK: () =>
+      changeBars(el("yoyK"), yoyBands(data.yoy, "dK"), { format: (v) => signed(v, 1, " pts"), good: "up", title: "Change in strikeout rate" }),
+    yoyERA: () =>
+      changeBars(el("yoyERA"), yoyBands(data.yoy, "dERA"), { format: (v) => signed(v, 2), good: "down", title: "Change in ERA" }),
+    teams: () =>
+      scatter(
+        el("teams"),
+        teams.map((t) => ({ ...t, x: t.rel, y: t.winPct })),
+        {
+          x: { label: "Staff velocity vs. league average (mph)", format: (v) => signed(v, 1) },
+          y: { label: "Regular-season win %", format: pctFmt, domain: [0.2, 0.8] },
+          dot: (d) => tierDot(tier(d.playoff)),
+          order: (d) => tier(d.playoff),
+          tip: (d) =>
+            `<strong>${d.season} ${NICKNAMES[d.id]}</strong><br>${record(d)} · ${labels[d.playoff]}<br><span class="muted">${d.ff.toFixed(1)} mph (${signed(d.rel, 1)} vs. league)</span>`,
+          label: (d) => (d.season === latest.season && d.playoff === 5 ? `${d.season} ${NICKNAMES[d.id]}` : null),
+        },
+      ),
+    strip: () =>
+      seasonDots(
+        el("strip"),
+        data.seasons.map((s) => ({ season: s.season, teams: s.teams.map((t) => ({ ...t, rel: t.ff - s.league.ff })) })),
+        {
+          name: (t) => NICKNAMES[t.id],
+          tipHtml: (t, row) =>
+            `<strong>${row.season} ${NICKNAMES[t.id]}</strong><br>${t.ff.toFixed(1)} mph (${signed(t.rel, 1)} vs. league)<br>${record(t)}${t.playoff ? ` · ${PLAYOFF_SHORT[t.playoff]}` : ""}`,
+          href: (t) => `${base}velocity/teams/${slug(t)}/`,
+        },
+      ),
+  };
+
+  const drawAll = () => Object.values(draw).forEach((f) => f());
+  drawAll();
+
+  let lastWidth = window.innerWidth;
+  window.addEventListener("resize", () => {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    drawAll();
+  });
+
+  const wire = (group, attr, onPick) =>
+    document.querySelectorAll(`[${group}] button`).forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(`[${group}] button`).forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+        onPick(btn.dataset[attr]);
+        draw.pitchers();
+      });
+    });
+  wire("data-metric", "metric", (v) => (metric = v));
+  wire("data-pseason", "season", (v) => (pSeason = Number(v)));
+</script>
