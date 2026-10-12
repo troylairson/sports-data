@@ -63,7 +63,7 @@ def fetch(url: str, name: str) -> bytes:
         return path.read_bytes()
     for attempt in range(4):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "sports-data-desk/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "thinking-about-sports/1.0"})
             with urllib.request.urlopen(req, timeout=60) as r:
                 body = r.read()
             path.write_bytes(body)

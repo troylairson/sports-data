@@ -1,4 +1,4 @@
-# The Sports Data Desk
+# Thinking About Sports
 
 A hub of sports data stories and visualizations. Each concept is a small data
 pipeline (Python, public data) feeding a static page (Astro + D3).
