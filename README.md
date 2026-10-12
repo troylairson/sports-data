@@ -1,4 +1,4 @@
-# The Sports Data Desk
+# Thinking About Sports
 
 A hub of sports data stories and visualizations. Each concept is a small data
 pipeline (Python, public data) feeding a static page (Astro + D3).
@@ -8,6 +8,7 @@ pipeline (Python, public data) feeding a static page (Astro + D3).
 | Concept | Page | Pipeline |
 |---|---|---|
 | Does the NFL draft build winners? | `site/src/pages/draft/` | `pipeline/build_draft_concept.py` |
+| Pitch velocity and winning (MLB) | `site/src/pages/velocity/` | `pipeline/build_velocity_concept.py` |
 
 ## Layout
 
@@ -26,6 +27,7 @@ site/                Astro site
 pip install -r pipeline/requirements.txt
 python pipeline/build_draft_concept.py             # 2016–2025 by default
 python pipeline/build_draft_concept.py --last 2026 # add a season
+python pipeline/build_velocity_concept.py          # 2016–2025 by default
 ```
 
 Raw downloads are cached in `pipeline/.cache/` (git-ignored).
@@ -46,3 +48,7 @@ Pushes to `main` deploy to GitHub Pages via `.github/workflows/deploy.yml`
 
 - [nflverse](https://github.com/nflverse/nflverse-data): snap counts (from Pro
   Football Reference), draft picks, rosters and game results. Free, no API key.
+- [Baseball Savant](https://baseballsavant.mlb.com): Statcast pitch velocity and
+  pitcher leaderboards (CSV export).
+- [MLB Stats API](https://statsapi.mlb.com): standings, team names and
+  postseason series.
